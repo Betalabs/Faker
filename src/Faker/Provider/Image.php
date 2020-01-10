@@ -30,25 +30,24 @@ class Image extends Base
      */
     public static function imageUrl($width = 640, $height = 480, $category = null, $randomize = true, $word = null, $gray = false)
     {
-        $baseUrl = "https://lorempixel.com/";
-        $url = "{$width}/{$height}/";
+        $baseUrl = 'https://source.unsplash.com/';
+        $url = "{$width}x{$height}/?";
+        $terms = array();
 
         if ($gray) {
-            $url = "gray/" . $url;
+            $terms[] = 'grayscale';
+        }
+        $terms[] = $category ?: static::$categories[mt_rand(0, count(static::$categories) - 1)];
+        if ($word) {
+            $terms[] = $word;
         }
 
-        if ($category) {
-            if (!in_array($category, static::$categories)) {
-                throw new \InvalidArgumentException(sprintf('Unknown image category "%s"', $category));
-            }
-            $url .= "{$category}/";
-            if ($word) {
-                $url .= "{$word}/";
-            }
+        if ($terms) {
+            $url .= implode(',', $terms);
         }
 
         if ($randomize) {
-            $url .= '?' . static::randomNumber(5, true);
+            $url .= (!empty($terms) ? '&' : '') . static::randomNumber(5, true);
         }
 
         return $baseUrl . $url;
@@ -61,7 +60,7 @@ class Image extends Base
      *
      * @example '/path/to/dir/13b73edae8443990be1aa8f1a483bc27.jpg'
      */
-    public static function image($dir = null, $width = 640, $height = 480, $category = null, $fullPath = true, $randomize = true, $word = null, $gray = false)
+    public static function image($dir = null, $width = 640, $height = 480, $category = null, $fullPath = true, $randomize = true, $word = null)
     {
         $dir = is_null($dir) ? sys_get_temp_dir() : $dir; // GNU/Linux / OS X / Windows compatible
         // Validate directory path
@@ -75,7 +74,7 @@ class Image extends Base
         $filename = $name .'.jpg';
         $filepath = $dir . DIRECTORY_SEPARATOR . $filename;
 
-        $url = static::imageUrl($width, $height, $category, $randomize, $word, $gray);
+        $url = static::imageUrl($width, $height, $category, $randomize, $word);
 
         // save file
         if (function_exists('curl_exec')) {
@@ -83,6 +82,7 @@ class Image extends Base
             $fp = fopen($filepath, 'w');
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_FILE, $fp);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             $success = curl_exec($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200;
             fclose($fp);
             curl_close($ch);
